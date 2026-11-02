@@ -12,6 +12,8 @@ RUN useradd --create-home --uid 1000 appuser
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+COPY alembic.ini docker-entrypoint.sh ./
+COPY alembic ./alembic
 COPY app ./app
 
 
@@ -29,4 +31,7 @@ FROM base AS runtime
 
 USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["sh", "/app/docker-entrypoint.sh"]
+# The backend is only reachable from the internal Docker network (Caddy/frontend),
+# so forwarded client-IP headers from those proxies are trusted.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

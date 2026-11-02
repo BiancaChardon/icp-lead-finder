@@ -1,16 +1,27 @@
-from typing import Literal
+import logging
+from collections.abc import Awaitable, Callable
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.config import Settings, get_settings
+from app.db import make_engine, make_session_factory
+from app.deps import CSRF_HEADER, SAFE_METHODS
+from app.providers import build_provider
+from app.rate_limit import RateLimiter
+from app.routers import auth, health, history, leads, search, users
 
+logger = logging.getLogger("app")
 
-class HealthResponse(BaseModel):
-    status: Literal["ok"]
-    service: str
+API_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+}
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -24,18 +35,44 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url=None if settings.is_production else "/openapi.json",
     )
 
-    if settings.cors_origin_list:
+    engine = make_engine(settings.database_url)
+    app.state.settings = settings
+    app.state.engine = engine
+    app.state.session_factory = make_session_factory(engine)
+    app.state.limiter = RateLimiter()
+    app.state.provider = build_provider(settings.resolved_contact_provider)
+
+    trusted_origins = set(settings.cors_origin_list)
+
+    @app.middleware("http")
+    async def security_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        # Reject state-changing requests sent by browsers from untrusted sites.
+        origin = request.headers.get("origin")
+        if request.method not in SAFE_METHODS and origin and origin.rstrip("/") not in trusted_origins:
+            logger.warning("Rejected %s %s from untrusted origin %r", request.method, request.url.path, origin[:200])
+            return JSONResponse(status_code=403, content={"detail": "Origin not allowed"})
+
+        response = await call_next(request)
+        if request.url.path.startswith("/api/"):
+            for header, value in API_SECURITY_HEADERS.items():
+                response.headers.setdefault(header, value)
+        else:
+            response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        return response
+
+    if trusted_origins:
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=settings.cors_origin_list,
+            allow_origins=sorted(trusted_origins),
             allow_credentials=True,
-            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-            allow_headers=["Content-Type"],
+            allow_methods=["GET", "POST", "PATCH", "DELETE"],
+            allow_headers=["Content-Type", CSRF_HEADER],
         )
 
-    @app.get("/health", response_model=HealthResponse, tags=["health"])
-    def health() -> HealthResponse:
-        return HealthResponse(status="ok", service="backend")
+    for module in (health, auth, users, search, leads, history):
+        app.include_router(module.router)
 
     return app
 

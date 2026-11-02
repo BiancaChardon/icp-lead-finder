@@ -1,101 +1,162 @@
 # ICP Lead Finder
 
-B2B prospecting web app for authorized team members: define an ideal customer profile (ICP),
-search for matching companies and decision-makers, save leads, and export to CSV.
+Internal B2B prospecting tool for authorized team members. Define an ideal customer profile (ICP),
+search for matching companies and decision-makers, review results, save leads, revisit past
+searches, and export to CSV.
 
-**Status: Milestone 1 (skeleton).** The stack runs, but there is no search, login, or database
-schema yet. Do not expose this to the internet.
+**Current data source: demonstration data only.** Searches use a clearly labeled mock provider
+(every result shows a **DEMO** badge). No real contact-data provider is connected yet; see
+[docs/PROVIDERS.md](docs/PROVIDERS.md).
 
-| Service    | Tech                         | Local address                      |
-|------------|------------------------------|------------------------------------|
-| `frontend` | Next.js 16, TypeScript       | http://localhost:3000              |
-| `backend`  | FastAPI (Python 3.12)        | http://localhost:8000              |
-| `db`       | PostgreSQL 17                | not published (Docker network only)|
+| Service    | Tech                              | Local address                        |
+|------------|-----------------------------------|--------------------------------------|
+| `frontend` | Next.js 16, TypeScript            | http://localhost:3000                |
+| `backend`  | FastAPI, SQLAlchemy 2, Alembic    | http://localhost:8000                |
+| `db`       | PostgreSQL 17                     | not published (Docker network only)  |
+| `caddy`    | Caddy 2 (production only)         | ports 80/443 on the server           |
 
-Both published ports are bound to `127.0.0.1`, so they are reachable only from this machine.
-The frontend forwards `/api/*` to the backend, so the browser only ever talks to one origin.
-The frontend container has no network route to the database.
+## Features
+
+- Team sign-in (no public registration), session cookies, CSRF protection, rate limiting.
+- ICP search: industry, job titles, locations, company size, keywords, company name, provider filters.
+- Results table with pagination, sorting, selection, and clear verified / unverified / not-available labels.
+- Save leads, view/remove saved leads, and search history with "Run again".
+- CSV export of selected results or all saved leads, with spreadsheet formula-injection protection.
+- Administrator user management in Settings; audit log of security and admin events.
 
 ## Prerequisites
 
 - Docker with Docker Compose v2 (`docker compose version`)
 - Git
 
-Node and Python are **not** required on the host; everything builds inside containers.
+Node and Python are **not** required on the host; everything builds and runs in containers.
 
 ## First-time setup
 
 ```bash
 cp .env.example .env
-# Replace the placeholder database password with a random one:
 sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
+docker compose up -d --build
 ```
 
-`.env` is git-ignored. Never commit it.
-
-## Start / stop
+Then create your administrator account (you'll be prompted for a password of 12+ characters):
 
 ```bash
-docker compose up -d --build     # build and start all three services
-docker compose ps                # all three should show "(healthy)"
+docker compose exec backend python -m app.cli create-admin --email you@yourcompany.com --name "Your Name"
+```
+
+Open http://localhost:3000 and sign in. Add team members under **Settings → Team members**.
+
+## Everyday commands
+
+```bash
+docker compose up -d --build     # build and start (migrations run automatically)
+docker compose ps                # db, backend, frontend should show "(healthy)"
 docker compose logs -f backend   # follow logs (or: frontend, db)
 docker compose down              # stop (database data is kept)
 ```
 
-`docker compose down -v` also **deletes the database volume**. Only use it when you
-intentionally want to wipe local data.
+`docker compose down -v` also **deletes the database volume**. Only use it to wipe local data on purpose.
 
 ## URLs to check
 
-| URL                                  | Expected                                        |
-|--------------------------------------|-------------------------------------------------|
-| http://localhost:3000                | Dashboard; "Backend API: Connected and healthy" |
-| http://localhost:3000/api/health     | `{"status":"ok","service":"backend"}` (via proxy)|
-| http://localhost:8000/health         | `{"status":"ok","service":"backend"}`           |
-| http://localhost:8000/docs           | Interactive API docs (disabled when `APP_ENV=production`) |
-
-Database check:
-
-```bash
-docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select version();"'
-```
+| URL                                  | Expected                                                 |
+|--------------------------------------|----------------------------------------------------------|
+| http://localhost:3000                | Redirects to the sign-in page until you sign in          |
+| http://localhost:3000/api/health     | `{"status":"ok","service":"backend"}`                    |
+| http://localhost:8000/health/ready   | `{"status":"ok","database":"ok"}`                        |
+| http://localhost:8000/docs           | Interactive API docs (disabled in production)            |
 
 ## Tests
 
-Backend (pytest, runs in a container):
-
 ```bash
-docker build --target test -t icp-lead-finder-backend-test ./backend
-docker run --rm icp-lead-finder-backend-test
+docker compose run --rm --build backend-test    # pytest against a separate *_test database
+docker compose run --rm --build frontend-test   # TypeScript type-check + Vitest
 ```
 
-Frontend type-checking runs automatically during `docker compose build`.
+Backend tests cover search validation, the mock provider, provider error handling, pagination and
+result formatting, authentication and authorization, saved-lead access control, CSV export,
+models and migrations, the admin CLI, and health checks.
 
-## Repository layout
+## Database migrations
 
-```text
-backend/    FastAPI app (app/), tests (tests/), Dockerfile with `test` and `runtime` targets
-frontend/   Next.js App Router app (src/app/), standalone production Dockerfile
-docker-compose.yml
-.env.example
+Migrations run automatically when the backend starts. Manual commands:
+
+```bash
+docker compose exec backend alembic upgrade head          # apply
+docker compose exec backend alembic current               # show current revision
+docker compose exec backend alembic downgrade -1          # roll back one step
+```
+
+After changing `backend/app/models.py`, generate a migration and review it before committing:
+
+```bash
+docker compose run --rm --no-deps --entrypoint alembic --user "$(id -u):$(id -g)" \
+  -v "$PWD/backend/alembic/versions:/app/alembic/versions" \
+  backend revision --autogenerate -m "describe the change"
 ```
 
 ## Configuration
 
-All configuration comes from environment variables (see `.env.example`):
+All configuration comes from environment variables in `.env` (see `.env.example`):
 
-| Variable               | Purpose                                                        |
-|------------------------|----------------------------------------------------------------|
-| `APP_ENV`              | `development` or `production` (production disables API docs)   |
-| `POSTGRES_DB`          | Database name                                                  |
-| `POSTGRES_USER`        | Database user                                                  |
-| `POSTGRES_PASSWORD`    | Database password (required; Compose refuses to start without it) |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins; `*` is rejected in production |
+| Variable                       | Purpose                                                                  |
+|--------------------------------|--------------------------------------------------------------------------|
+| `APP_ENV`                      | `development` or `production`                                            |
+| `POSTGRES_DB` / `POSTGRES_USER`| Database name and user                                                   |
+| `POSTGRES_PASSWORD`            | Database password (required)                                             |
+| `CORS_ALLOWED_ORIGINS`         | Comma-separated trusted browser origins; also used for CSRF origin checks |
+| `COOKIE_SECURE`                | `true` in production (HTTPS-only cookies)                                |
+| `SESSION_TTL_HOURS`            | Session lifetime (default 12)                                            |
+| `CONTACT_PROVIDER`             | Empty = `mock` in development; must be set explicitly in production      |
+| `LOGIN_RATE_LIMIT_PER_MINUTE`  | Per-account sign-in attempts per minute (default 5)                      |
+| `SEARCH_RATE_LIMIT_PER_MINUTE` | Searches per user per minute (default 20)                                |
+| `SITE_ADDRESS`                 | Production only: domain or public IP served by Caddy                     |
+
+Production refuses to start with insecure or missing settings (wildcard or non-HTTPS origins,
+`COOKIE_SECURE=false`, unset `CONTACT_PROVIDER`).
+
+## Security notes
+
+- Passwords are hashed with Argon2id. Sessions are random tokens stored hashed in the database,
+  sent as `HttpOnly`, `SameSite=Lax` cookies (`Secure` in production) and expire after `SESSION_TTL_HOURS`.
+- State-changing requests require a CSRF token header and a trusted `Origin`.
+- Every data endpoint checks the session server-side; users can only see their own saved leads and history.
+- Provider credentials stay on the server; the frontend only calls this app's API.
+- Health checks expose no configuration. Logs never include passwords, session tokens, or API keys.
+- CSV exports prefix cells starting with `=`, `+`, `-`, `@`, tab, or carriage return with `'`, so
+  phone numbers such as `+1 410-555-0100` appear as `'+1 410-555-0100` in the raw file.
+- Rate limits are kept in memory per backend process (the default single-process setup).
+
+## Documentation
+
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): DigitalOcean Ubuntu deployment with Caddy HTTPS
+- [docs/BACKUP.md](docs/BACKUP.md): backups, restores, and retention
+- [docs/PROVIDERS.md](docs/PROVIDERS.md): provider interface and adding Apollo.io or others
+
+## Repository layout
+
+```text
+backend/
+  app/            FastAPI app: config, models, auth, providers/, routers/, CSV export, admin CLI
+  alembic/        database migrations
+  tests/          pytest suite
+frontend/
+  src/app/        Next.js pages: login, dashboard, history, saved leads, settings
+  src/components/ UI components; src/lib/ API client, criteria parsing, types
+deploy/Caddyfile  production reverse proxy and security headers
+docs/             deployment, backup, provider guides
+scripts/          backup-db.sh
+docker-compose.yml        development stack (+ test runners)
+docker-compose.prod.yml   production overrides (adds Caddy, removes host ports)
+```
 
 ## Troubleshooting
 
 - **`Set POSTGRES_PASSWORD in .env`**: you skipped the first-time setup step.
-- **Port already in use**: something else is on 3000 or 8000. Stop it, or change the left-hand
-  side of the `ports:` mapping in `docker-compose.yml`.
-- **Dashboard shows "Backend is unreachable"**: run `docker compose ps` and
-  `docker compose logs backend`.
+- **Port already in use**: something else is on 3000 or 8000. Stop it or change the host side of `ports:`.
+- **"Origin not allowed" when signing in**: open the app at an address listed in `CORS_ALLOWED_ORIGINS`
+  (by default `http://localhost:3000` or `http://127.0.0.1:3000`).
+- **"Service unavailable" page**: run `docker compose ps` and `docker compose logs backend`.
+- **WSL cannot reach GitHub or PyPI while a VPN is connected**: disconnect the VPN, or set
+  `networkingMode=mirrored` under `[wsl2]` in `%UserProfile%\.wslconfig` and run `wsl --shutdown`.

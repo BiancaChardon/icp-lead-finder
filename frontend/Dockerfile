@@ -4,6 +4,13 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 
+FROM deps AS test
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY . .
+RUN npm run typecheck
+CMD ["npm", "test"]
+
+
 FROM node:24-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1

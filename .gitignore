@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Database backups (contain personal data)
+backups/
+*.dump
+
 # Python
 __pycache__/
 *.py[cod]
