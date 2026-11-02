@@ -17,7 +17,8 @@ searches, and export to CSV.
 
 ## Features
 
-- Team sign-in (no public registration), session cookies, CSRF protection, rate limiting.
+- Optional team sign-in (`AUTH_REQUIRED`; off by default), no public registration, session cookies,
+  CSRF protection, rate limiting.
 - ICP search: industry, job titles, locations, company size, keywords, company name, provider filters.
 - Results table with pagination, sorting, selection, and clear verified / unverified / not-available labels.
 - Save leads, view/remove saved leads, and search history with "Run again".
@@ -39,13 +40,17 @@ sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
 docker compose up -d --build
 ```
 
-Then create your administrator account (you'll be prompted for a password of 12+ characters):
+Open http://localhost:3000. Sign-in is **off by default** (`AUTH_REQUIRED=false`): the dashboard opens
+directly and everyone shares one workspace (saved leads and search history).
+
+To require sign-in, set `AUTH_REQUIRED=true` in `.env`, run `docker compose up -d`, and create an
+administrator (you'll be prompted for a password of 12+ characters):
 
 ```bash
 docker compose exec backend python -m app.cli create-admin --email you@yourcompany.com --name "Your Name"
 ```
 
-Open http://localhost:3000 and sign in. Add team members under **Settings → Team members**.
+Administrators add team members under **Settings → Team members**.
 
 ## Everyday commands
 
@@ -62,7 +67,7 @@ docker compose down              # stop (database data is kept)
 
 | URL                                  | Expected                                                 |
 |--------------------------------------|----------------------------------------------------------|
-| http://localhost:3000                | Redirects to the sign-in page until you sign in          |
+| http://localhost:3000                | Dashboard (or the sign-in page if `AUTH_REQUIRED=true`)  |
 | http://localhost:3000/api/health     | `{"status":"ok","service":"backend"}`                    |
 | http://localhost:8000/health/ready   | `{"status":"ok","database":"ok"}`                        |
 | http://localhost:8000/docs           | Interactive API docs (disabled in production)            |
@@ -106,6 +111,7 @@ All configuration comes from environment variables in `.env` (see `.env.example`
 | `POSTGRES_DB` / `POSTGRES_USER`| Database name and user                                                   |
 | `POSTGRES_PASSWORD`            | Database password (required)                                             |
 | `CORS_ALLOWED_ORIGINS`         | Comma-separated trusted browser origins; also used for CSRF origin checks |
+| `AUTH_REQUIRED`                | `false` (default) = no sign-in, shared workspace; `true` = team sign-in  |
 | `COOKIE_SECURE`                | `true` in production (HTTPS-only cookies)                                |
 | `SESSION_TTL_HOURS`            | Session lifetime (default 12)                                            |
 | `CONTACT_PROVIDER`             | Empty = `mock` in development; must be set explicitly in production      |
@@ -118,6 +124,9 @@ Production refuses to start with insecure or missing settings (wildcard or non-H
 
 ## Security notes
 
+- **With `AUTH_REQUIRED=false` there is no access control:** anyone who can reach the site can run
+  searches (and use provider credits once a real provider is connected) and view or export all saved
+  leads. Untrusted-origin requests are still rejected and searches are rate-limited per client address.
 - Passwords are hashed with Argon2id. Sessions are random tokens stored hashed in the database,
   sent as `HttpOnly`, `SameSite=Lax` cookies (`Secure` in production) and expire after `SESSION_TTL_HOURS`.
 - State-changing requests require a CSRF token header and a trusted `Origin`.

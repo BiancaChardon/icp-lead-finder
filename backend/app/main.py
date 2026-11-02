@@ -42,6 +42,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.limiter = RateLimiter()
     app.state.provider = build_provider(settings.resolved_contact_provider)
 
+    if not settings.auth_required:
+        logger.warning("AUTH_REQUIRED is false: sign-in is off and every visitor has access to all data")
+
     trusted_origins = set(settings.cors_origin_list)
 
     @app.middleware("http")

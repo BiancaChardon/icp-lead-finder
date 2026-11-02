@@ -97,9 +97,10 @@ def logout(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> Response:
-    db.delete(current.session)
-    record_event(db, "logout", actor_user_id=current.user.id)
-    db.commit()
+    if current.session is not None:
+        db.delete(current.session)
+        record_event(db, "logout", actor_user_id=current.user.id)
+        db.commit()
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     _clear_auth_cookies(response, settings)
     return response
@@ -107,7 +108,11 @@ def logout(
 
 @router.get("/me", response_model=SessionOut)
 def me(current: CurrentSession = Depends(get_current_session)) -> SessionOut:
-    return SessionOut(user=UserOut.model_validate(current.user), csrf_token=current.session.csrf_token)
+    return SessionOut(
+        user=UserOut.model_validate(current.user),
+        csrf_token=current.session.csrf_token if current.session else "",
+        auth_required=current.session is not None,
+    )
 
 
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
@@ -118,6 +123,8 @@ def change_password(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings_dep),
 ) -> Response:
+    if current.session is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sign-in is turned off")
     user = current.user
     enforce_rate_limit(request, f"change-password:{user.id}", settings.login_rate_limit_per_minute)
     if not verify_password(user.password_hash, body.current_password):

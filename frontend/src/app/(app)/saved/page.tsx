@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Pagination } from "@/components/Pagination";
 import { ResultsTable } from "@/components/ResultsTable";
+import { useAuthRequired } from "@/components/UserContext";
 import { apiJson, apiRequest, downloadCsv, errorText } from "@/lib/api";
 import { fullName } from "@/lib/format";
 import type { Page, SavedLead } from "@/lib/types";
@@ -11,6 +12,7 @@ import type { Page, SavedLead } from "@/lib/types";
 const PER_PAGE = 25;
 
 export default function SavedLeadsPage() {
+  const authRequired = useAuthRequired();
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Page<SavedLead> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,11 @@ export default function SavedLeadsPage() {
       <header className="page-header page-header-row">
         <div>
           <h1>Saved Leads</h1>
-          <p className="muted">Leads you saved from search results. Only you can see your saved leads.</p>
+          <p className="muted">
+            {authRequired
+              ? "Leads you saved from search results. Only you can see your saved leads."
+              : "Leads saved from search results. Everyone using this site shares this list."}
+          </p>
         </div>
         {data && data.total > 0 && (
           <button type="button" className="btn btn-secondary" onClick={exportAll} disabled={busy}>

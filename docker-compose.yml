@@ -31,6 +31,7 @@ services:
       APP_ENV: ${APP_ENV:-development}
       DATABASE_URL: *database-url
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
       CONTACT_PROVIDER: ${CONTACT_PROVIDER:-}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { apiRequest } from "@/lib/api";
-import { useUser } from "./UserContext";
+import { useAuthRequired, useUser } from "./UserContext";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/" },
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const user = useUser();
+  const authRequired = useAuthRequired();
   const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
@@ -44,15 +45,17 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <span className="sidebar-user-name">{user.full_name}</span>
-          <span className="sidebar-user-role">{user.role === "admin" ? "Administrator" : "Team member"}</span>
+      {authRequired && (
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <span className="sidebar-user-name">{user.full_name}</span>
+            <span className="sidebar-user-role">{user.role === "admin" ? "Administrator" : "Team member"}</span>
+          </div>
+          <button type="button" className="btn btn-ghost-dark" onClick={signOut} disabled={signingOut}>
+            {signingOut ? "Signing out…" : "Sign out"}
+          </button>
         </div>
-        <button type="button" className="btn btn-ghost-dark" onClick={signOut} disabled={signingOut}>
-          {signingOut ? "Signing out…" : "Sign out"}
-        </button>
-      </div>
+      )}
     </aside>
   );
 }

@@ -101,9 +101,14 @@ Tip: create an alias so you don't have to type both files:
 echo "alias dcp='docker compose -f docker-compose.yml -f docker-compose.prod.yml'" >> ~/.bashrc && source ~/.bashrc
 ```
 
-## 7. Create the first administrator
+## 7. Sign-in (optional)
 
-There is no public sign-up. Create the first administrator on the server:
+Sign-in is **off by default** (`AUTH_REQUIRED=false`). In that mode anyone who can reach the server's
+address can search, view and export all saved leads, and (once a real provider is connected) spend
+provider credits. To protect it, restrict access in the DigitalOcean firewall to your team's IP
+addresses, or turn sign-in on by setting `AUTH_REQUIRED=true` in `.env` and running `dcp up -d`.
+
+With sign-in on there is no public sign-up. Create the first administrator on the server:
 
 ```bash
 dcp exec backend python -m app.cli create-admin --email <you@yourcompany.com> --name "<Your Name>"
@@ -120,7 +125,7 @@ dcp exec backend python -m app.cli reset-password --email <you@yourcompany.com>
 
 ## 8. Verify
 
-- Open `https://<SITE_ADDRESS>` → you are redirected to the sign-in page.
+- Open `https://<SITE_ADDRESS>` → the dashboard opens (or the sign-in page if `AUTH_REQUIRED=true`).
 - `curl -s https://<SITE_ADDRESS>/api/health` → `{"status":"ok","service":"backend"}`
 - Sign in, run a search, and confirm results are marked **DEMO** while `CONTACT_PROVIDER=mock`.
 - `dcp logs caddy` shows the certificate was obtained.
@@ -151,6 +156,7 @@ dcp down                     # stop everything (data is kept in Docker volumes)
 - [ ] `.env` has `APP_ENV=production`, a random `POSTGRES_PASSWORD`, `COOKIE_SECURE=true`, an `https://` origin.
 - [ ] Only ports 22, 80, 443 are open in the cloud firewall; SSH uses keys, not passwords.
 - [ ] HTTPS works and the browser shows a trusted certificate.
-- [ ] The first administrator was created with the CLI; no shared accounts.
+- [ ] Either `AUTH_REQUIRED=true` with the first administrator created via the CLI, or the cloud
+      firewall limits ports 80/443 to your team's IP addresses.
 - [ ] Automated, off-server backups are configured and a restore has been tested (docs/BACKUP.md).
 - [ ] Provider API keys (when added) are only in `.env` on the server.

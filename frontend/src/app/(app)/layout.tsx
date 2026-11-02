@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <UserProvider user={result.session.user}>
+    <UserProvider user={result.session.user} authRequired={result.session.auth_required}>
       <div className="shell">
         <Sidebar />
         <main className="content">{children}</main>

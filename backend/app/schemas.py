@@ -54,6 +54,7 @@ class UserOut(BaseModel):
 class SessionOut(BaseModel):
     user: UserOut
     csrf_token: str
+    auth_required: bool = True
 
 
 class ChangePasswordRequest(StrictModel):

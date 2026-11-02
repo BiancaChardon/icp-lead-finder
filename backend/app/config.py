@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # list for state-changing requests (CSRF defense).
     cors_allowed_origins: str = ""
 
+    # When false, nobody signs in: every visitor shares one built-in workspace user.
+    auth_required: bool = False
+
     session_ttl_hours: int = Field(default=12, ge=1, le=168)
     cookie_secure: bool = False
 

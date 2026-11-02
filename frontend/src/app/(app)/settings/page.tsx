@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { useUser } from "@/components/UserContext";
+import { useAuthRequired, useUser } from "@/components/UserContext";
 import { apiJson, apiRequest, errorText } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import type { ProviderInfo, Role, User } from "@/lib/types";
@@ -245,6 +245,7 @@ function TeamManagement({ currentUserId }: { currentUserId: number }) {
 
 export default function SettingsPage() {
   const user = useUser();
+  const authRequired = useAuthRequired();
   // undefined while loading, null if the request failed
   const [provider, setProvider] = useState<ProviderInfo | null | undefined>(undefined);
 
@@ -260,22 +261,34 @@ export default function SettingsPage() {
         <h1>Settings</h1>
       </header>
 
-      <section className="card">
-        <h2>Your account</h2>
-        <dl className="details">
-          <dt>Name</dt>
-          <dd>{user.full_name}</dd>
-          <dt>Email</dt>
-          <dd>{user.email}</dd>
-          <dt>Role</dt>
-          <dd>{user.role === "admin" ? "Administrator" : "Team member"}</dd>
-        </dl>
-      </section>
+      {authRequired ? (
+        <>
+          <section className="card">
+            <h2>Your account</h2>
+            <dl className="details">
+              <dt>Name</dt>
+              <dd>{user.full_name}</dd>
+              <dt>Email</dt>
+              <dd>{user.email}</dd>
+              <dt>Role</dt>
+              <dd>{user.role === "admin" ? "Administrator" : "Team member"}</dd>
+            </dl>
+          </section>
 
-      <section className="card">
-        <h2>Change password</h2>
-        <ChangePassword />
-      </section>
+          <section className="card">
+            <h2>Change password</h2>
+            <ChangePassword />
+          </section>
+        </>
+      ) : (
+        <section className="card">
+          <h2>Access</h2>
+          <p className="muted">
+            Sign-in is turned off. Everyone who can open this site shares the same saved leads and search history.
+            To require sign-in, set <code>AUTH_REQUIRED=true</code> on the server.
+          </p>
+        </section>
+      )}
 
       <section className="card">
         <h2>Contact-data provider</h2>
@@ -300,7 +313,7 @@ export default function SettingsPage() {
         <p className="muted small">The provider and its API credentials are configured on the server only.</p>
       </section>
 
-      {user.role === "admin" && (
+      {authRequired && user.role === "admin" && (
         <section className="card">
           <h2>Team members</h2>
           <p className="muted">There is no public sign-up. Administrators add team members here.</p>

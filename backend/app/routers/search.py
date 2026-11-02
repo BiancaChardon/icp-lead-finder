@@ -21,7 +21,7 @@ from app.providers import (
     UnsupportedQueryError,
     get_provider,
 )
-from app.rate_limit import enforce_rate_limit
+from app.rate_limit import client_ip, enforce_rate_limit
 from app.schemas import MAX_PAGE, ExportRequest, ProviderInfo, SearchRequest, SearchResponse
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,9 @@ def search(
     provider: ProspectProvider = Depends(get_provider),
     settings: Settings = Depends(get_settings_dep),
 ) -> SearchResponse:
-    enforce_rate_limit(request, f"search:user:{user.id}", settings.search_rate_limit_per_minute)
+    # Without sign-in everyone shares one user, so limit per client address instead.
+    limit_key = f"search:user:{user.id}" if settings.auth_required else f"search:ip:{client_ip(request)}"
+    enforce_rate_limit(request, limit_key, settings.search_rate_limit_per_minute)
 
     query = ProspectQuery(
         criteria=body.criteria,

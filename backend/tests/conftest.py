@@ -48,7 +48,9 @@ def database_url() -> str:
 
 @pytest.fixture
 def settings(database_url: str) -> Settings:
-    return Settings(database_url=database_url, cors_allowed_origins=TEST_ORIGIN, contact_provider="mock")
+    return Settings(
+        database_url=database_url, cors_allowed_origins=TEST_ORIGIN, contact_provider="mock", auth_required=True
+    )
 
 
 @pytest.fixture

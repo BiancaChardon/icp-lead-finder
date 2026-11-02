@@ -74,6 +74,7 @@ export interface User {
 export interface SessionInfo {
   user: User;
   csrf_token: string;
+  auth_required: boolean;
 }
 
 export interface Page<T> {
