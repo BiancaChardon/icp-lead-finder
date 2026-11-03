@@ -1,6 +1,12 @@
 # Deploying ICP Lead Finder
 
-This guide covers the local demo and a DigitalOcean Ubuntu VM. Replace every `<placeholder>`.
+The current handoff guide is [../DEPLOYMENT.md](../DEPLOYMENT.md). It stays with Docker Compose
+and does not treat any hosting company as a verified target.
+
+The DigitalOcean section below is an example that was not executed for this backup. Do not treat
+it as a completed or verified deployment.
+
+This file also covers the local demo. Replace every `<placeholder>`.
 The contact provider remains the built-in mock provider. Apollo.io and Hunter.io are not connected.
 
 Production refuses to start unless the site address, allowed origin, database

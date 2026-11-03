@@ -4,16 +4,26 @@ Internal B2B prospecting tool for authorized team members. Define an ideal custo
 search for matching companies and decision-makers, review results, save leads, revisit past
 searches, and export to CSV.
 
-**Current data source: demonstration data only.** Searches use a clearly labeled mock provider
-(every result shows a **DEMO** badge). No real contact-data provider is connected yet; see
+**Current data source: demonstration data only.** Searches use a clearly labeled mock provider.
+Every mock result shows a **DEMO** badge. Those records are fictional demonstration prospects,
+not verified real leads. No real contact-data provider is connected; see
 [docs/PROVIDERS.md](docs/PROVIDERS.md).
 
-| Service    | Tech                              | Local address                        |
-|------------|-----------------------------------|--------------------------------------|
-| `frontend` | Next.js 16, TypeScript            | http://localhost:3000                |
-| `backend`  | FastAPI, SQLAlchemy 2, Alembic    | http://localhost:8000                |
-| `db`       | PostgreSQL 17                     | not published (Docker network only)  |
-| `caddy`    | Caddy 2 (production only)         | ports 80/443 on the server           |
+## Architecture
+
+The app is three containers plus an optional production proxy. PostgreSQL stays on the Docker
+network and is not published to the host.
+
+| Service    | Tech                              | Default host address                 | Local demo address            |
+|------------|-----------------------------------|--------------------------------------|-------------------------------|
+| `frontend` | Next.js 16, TypeScript            | http://127.0.0.1:3000                | http://127.0.0.1:3012         |
+| `backend`  | FastAPI, SQLAlchemy 2, Alembic    | http://127.0.0.1:8000                | http://127.0.0.1:8012         |
+| `db`       | PostgreSQL 17                     | Docker volume `postgres_data` only   | same                          |
+| `caddy`    | Caddy 2 (production overlay only) | ports 80/443                         | not used                      |
+
+The local demo on this machine uses `docker-compose.demo.yml` because ports 3000 and 8000 are
+already taken by another application. Authentication is off (`AUTH_REQUIRED=false`). The dashboard
+opens directly into one shared workspace. API documentation is at http://127.0.0.1:8012/docs.
 
 ## Features
 
@@ -24,7 +34,9 @@ searches, and export to CSV.
 - Results table with pagination, sorting, selection, and clear verified / unverified / not-available labels.
 - Save leads, view/remove saved leads, and search history with "Run again".
 - Excel `.xlsx` import with preview, column mapping, duplicate detection, and an error CSV.
-- CSV export of selected results or all saved leads, with spreadsheet formula-injection protection.
+  See [Import a spreadsheet](#import-a-spreadsheet).
+- CSV export of selected search results (`POST /api/search/export/csv`) or all saved leads
+  (`GET /api/leads/export`), with spreadsheet formula-injection protection.
 - Administrator user management in Settings; audit log of security and admin events.
 
 ## Prerequisites
@@ -42,7 +54,15 @@ sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
 docker compose up -d --build
 ```
 
-If port 3000 or 8000 is already in use, start with `docker-compose.demo.yml` as well. See [DEMO-START.md](DEMO-START.md).
+If port 3000 or 8000 is already in use, start the local demo instead:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+```
+
+That overlay publishes the frontend on http://127.0.0.1:3012 and the backend on
+http://127.0.0.1:8012. Set `CORS_ALLOWED_ORIGINS` to those two origins. Details are in
+[DEMO-START.md](DEMO-START.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
 
 Open http://localhost:3000. Sign-in is **off by default** (`AUTH_REQUIRED=false`): the dashboard opens
 directly and everyone shares one workspace (saved leads and search history).
@@ -75,6 +95,31 @@ docker compose down              # stop (database data is kept)
 | http://localhost:3000/api/health     | `{"status":"ok","service":"backend"}`                    |
 | http://localhost:8000/health/ready   | `{"status":"ok","database":"ok"}`                        |
 | http://localhost:8000/docs           | Interactive API docs (disabled in production)            |
+
+## Import a spreadsheet
+
+Saved Leads has an **Import Leads** button. The API accepts one `.xlsx` workbook:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/leads/import/preview` | Parse and classify rows. Nothing is written. |
+| `POST /api/leads/import` | Save ready rows in one transaction. |
+| `POST /api/leads/import/errors` | Download a CSV of rejected rows. |
+
+Limits: 10 MB upload, 50 MB uncompressed workbook, 5,000 data rows, 50 columns. Legacy `.xls`
+files are rejected. The file is read in memory and is not stored on disk. Formulas are rejected
+and are not evaluated. The first worksheet is used. Recognized headers include company, first
+name, last name, job title, email, phone, website, industry, employees, city, state, country,
+and data source. Unknown headers can be mapped in the preview.
+
+A row is a duplicate when it repeats an earlier row in the same file, or when this user already
+has an Excel import with the same record id. Duplicates are skipped unless **Update saved leads
+that match these rows** is checked. A failed commit rolls back the whole file. Invalid rows are
+reported and are not saved.
+
+The committed sample is `samples/sample-prospects.xlsx` (12 fictional prospects). Rebuild it with
+`python samples/build_sample_prospects.py` from a machine that has the backend dependencies.
+`samples/icp-lead-finder-30-additional-prospects.xlsx` is not in this repository.
 
 ## Tests
 
@@ -144,7 +189,9 @@ Production refuses to start with insecure or missing settings (wildcard or non-H
 ## Documentation
 
 - [DEMO-START.md](DEMO-START.md): local demo on ports 3012 and 8012
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): local startup and DigitalOcean deployment with Caddy HTTPS
+- [DEPLOYMENT.md](DEPLOYMENT.md): Docker setup, migrations, health checks, and production considerations
+- [BACKUP-MANIFEST.md](BACKUP-MANIFEST.md): what this backup includes and what it leaves out
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): earlier notes, including an unverified DigitalOcean example
 - [docs/ENVIRONMENT_CONFIGURATION.md](docs/ENVIRONMENT_CONFIGURATION.md): environment variables and sign-in readiness
 - [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md): backup, scratch restore, and live restore
 - [docs/PROVIDERS.md](docs/PROVIDERS.md): provider interface and adding Apollo.io or others
