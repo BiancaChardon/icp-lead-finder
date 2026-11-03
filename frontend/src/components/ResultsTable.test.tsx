@@ -40,6 +40,21 @@ describe("ResultsTable", () => {
     expect(within(row).getByText("250")).toBeInTheDocument();
     expect(within(row).getByText("DEMO")).toBeInTheDocument();
     expect(within(row).getByText("Not available")).toBeInTheDocument();
+    expect(within(row).queryByText("Imported")).not.toBeInTheDocument();
+  });
+
+  it("marks spreadsheet imports and does not mark them as demo data", () => {
+    render(
+      <ResultsTable
+        records={[prospect({ provider: "excel_import", provider_record_id: "abc", is_demo: false, data_source: "Excel import", email_status: "unknown" })]}
+        caption="Saved leads"
+      />,
+    );
+
+    const row = screen.getAllByRole("row")[1];
+    expect(within(row).getByText("Imported")).toBeInTheDocument();
+    expect(within(row).getByText("Excel import")).toBeInTheDocument();
+    expect(within(row).queryByText("DEMO")).not.toBeInTheDocument();
   });
 
   it("does not link unsafe website URLs", () => {

@@ -80,6 +80,25 @@ def test_provider_filter_type_checked(member_client: TestClient):
     assert search(member_client, criteria) == 422
 
 
+def test_contact_details_count_as_a_criterion():
+    criteria = SearchCriteria(email="  Lang@Harbor.example ", first_name="  ")
+
+    assert criteria.email == "Lang@Harbor.example"
+    assert criteria.first_name is None
+    assert criteria.phone is None
+
+
+def test_contact_only_search_is_accepted(member_client: TestClient):
+    assert search(member_client, {"email": "example"}) == 200
+    assert search(member_client, {"first_name": "Avery", "last_name": "Lang"}) == 200
+
+
+def test_phone_without_digits_is_rejected(member_client: TestClient):
+    with pytest.raises(ValidationError, match="digits"):
+        SearchCriteria(phone="call me")
+    assert search(member_client, {"phone": "call me"}) == 422
+
+
 def test_search_request_defaults():
     request = SearchRequest(criteria=SearchCriteria(**VALID))
 

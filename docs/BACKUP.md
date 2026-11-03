@@ -1,5 +1,11 @@
 # Backup and recovery
 
+The current procedure, including the local demo ports and a scratch-database restore test, is
+[BACKUP_AND_RESTORE.md](BACKUP_AND_RESTORE.md).
+
+Do not use the restore command below as a test. `--clean` replaces tables in the database you name.
+A test restore belongs in a separate database, never in the active `icp_lead_finder` database.
+
 All application data (users, search history, saved leads, audit events) lives in PostgreSQL,
 in the `postgres_data` Docker volume. Backups contain business contact details and password
 hashes: store them encrypted and restrict who can read them.

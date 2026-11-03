@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal
 
+from app.contact_search import CONTACT_FIELD_LABELS, CONTACT_SEARCH_FIELDS
 from app.schemas import Prospect, ProviderFilterInfo, ProviderInfo, SearchCriteria
 
 
@@ -52,6 +53,8 @@ class ProspectProvider(ABC):
     is_demo: bool = False
     sort_fields: tuple[str, ...] = ()
     filters: tuple[ProviderFilterInfo, ...] = ()
+    # Empty means this provider cannot search by person. Callers must not drop those criteria.
+    contact_search_fields: tuple[str, ...] = ()
 
     def info(self) -> ProviderInfo:
         return ProviderInfo(
@@ -60,6 +63,7 @@ class ProspectProvider(ABC):
             is_demo=self.is_demo,
             sort_fields=list(self.sort_fields),
             filters=list(self.filters),
+            contact_search_fields=list(self.contact_search_fields),
         )
 
     def validate_query(self, query: ProspectQuery) -> None:
@@ -72,6 +76,16 @@ class ProspectProvider(ABC):
                 raise UnsupportedQueryError(f"Filter '{key}' is not supported by this provider")
             if spec.type == "boolean" and not isinstance(value, bool):
                 raise UnsupportedQueryError(f"Filter '{key}' must be true or false")
+        unsupported = [
+            CONTACT_FIELD_LABELS[field]
+            for field in CONTACT_SEARCH_FIELDS
+            if getattr(query.criteria, field) and field not in self.contact_search_fields
+        ]
+        if unsupported:
+            names = ", ".join(unsupported)
+            raise UnsupportedQueryError(
+                f"This provider cannot search by {names}. Search imported contacts on Saved Leads."
+            )
 
     @abstractmethod
     def search(self, query: ProspectQuery) -> ProspectPage: ...

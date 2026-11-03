@@ -1,6 +1,7 @@
 #!/bin/sh
 # Back up the PostgreSQL database to backups/ and prune local dumps older than RETENTION_DAYS.
 # Usage: ./scripts/backup-db.sh
+#   COMPOSE_FILES="-f docker-compose.yml -f docker-compose.demo.yml" ./scripts/backup-db.sh   (local demo)
 #   COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml" ./scripts/backup-db.sh   (production)
 set -eu
 

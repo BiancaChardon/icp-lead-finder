@@ -1,0 +1,9 @@
+# Local host-port overlay. Nexus already publishes 3000 and 8000.
+# Container ports stay 3000 and 8000; only the host side changes.
+services:
+  backend:
+    ports: !override
+      - "127.0.0.1:8012:8000"
+  frontend:
+    ports: !override
+      - "127.0.0.1:3012:3000"

@@ -9,6 +9,7 @@ import random
 import re
 from dataclasses import dataclass
 
+from app.contact_search import CONTACT_SEARCH_FIELDS, contains_text, normalize_phone, person_name_matches
 from app.providers.base import ProspectPage, ProspectProvider, ProspectQuery
 from app.schemas import Prospect, ProviderFilterInfo
 
@@ -184,6 +185,9 @@ class MockProvider(ProspectProvider):
     is_demo = True
     sort_fields = SORT_FIELDS
     filters = (ProviderFilterInfo(key="verified_email_only", label="Only verified emails", type="boolean"),)
+    # The generated records include these fields, so the demo provider can match them.
+    # Apollo.io and Hunter.io are not implemented and must not be described as searchable.
+    contact_search_fields = CONTACT_SEARCH_FIELDS
 
     def __init__(self) -> None:
         self._records = _generate()
@@ -238,6 +242,16 @@ class MockProvider(ProspectProvider):
             if not any(_contains_phrase(haystack, k) for k in c.keywords):
                 return False
         if c.company_name and c.company_name.lower() not in (p.company_name or "").lower():
+            return False
+        if c.full_name and not person_name_matches(p.first_name, p.last_name, c.full_name):
+            return False
+        if c.first_name and not person_name_matches(p.first_name, p.last_name, c.first_name):
+            return False
+        if c.last_name and not person_name_matches(p.first_name, p.last_name, c.last_name):
+            return False
+        if c.email and not contains_text(p.email, c.email):
+            return False
+        if c.phone and normalize_phone(p.phone) != normalize_phone(c.phone):
             return False
         if c.provider_filters.get("verified_email_only") and p.email_status != "verified":
             return False

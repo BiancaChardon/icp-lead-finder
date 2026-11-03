@@ -15,6 +15,10 @@ const INDUSTRY_SUGGESTIONS = [
   "Retail",
 ];
 
+function contactFieldDisabled(provider: ProviderInfo | null, field: string): boolean {
+  return !!provider && !provider.contact_search_fields.includes(field);
+}
+
 interface Props {
   values: SearchFormValues;
   onChange: (values: SearchFormValues) => void;
@@ -121,6 +125,88 @@ export function SearchForm({ values, onChange, onSubmit, onReset, provider, busy
           />
         </label>
       </div>
+
+      <fieldset className="contact-search">
+        <legend>Contact Search</legend>
+        <p className="muted">
+          Optional. A full name can go in one field, including “Price, Sophia”. Combine these with the company criteria above.
+        </p>
+        <div className="form-grid">
+          <label className="field">
+            <span>
+              Full name <span className="optional">(optional)</span>
+            </span>
+            <input
+              value={values.fullName}
+              maxLength={LIMITS.companyName}
+              placeholder="e.g. Sophia Price"
+              disabled={contactFieldDisabled(provider, "full_name")}
+              onChange={(e) => set("fullName", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>
+              First name <span className="optional">(optional)</span>
+            </span>
+            <input
+              value={values.firstName}
+              maxLength={LIMITS.shortText}
+              placeholder="e.g. Avery"
+              disabled={contactFieldDisabled(provider, "first_name")}
+              onChange={(e) => set("firstName", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>
+              Last name <span className="optional">(optional)</span>
+            </span>
+            <input
+              value={values.lastName}
+              maxLength={LIMITS.shortText}
+              placeholder="e.g. Lang"
+              disabled={contactFieldDisabled(provider, "last_name")}
+              onChange={(e) => set("lastName", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>
+              Phone number <span className="optional">(optional)</span>
+            </span>
+            <input
+              type="tel"
+              value={values.phone}
+              maxLength={50}
+              placeholder="e.g. (410) 555-0101"
+              disabled={contactFieldDisabled(provider, "phone")}
+              onChange={(e) => set("phone", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>
+              Email address <span className="optional">(optional)</span>
+            </span>
+            <input
+              type="text"
+              inputMode="email"
+              autoComplete="off"
+              value={values.email}
+              maxLength={320}
+              placeholder="e.g. lang@harbor"
+              disabled={contactFieldDisabled(provider, "email")}
+              onChange={(e) => set("email", e.target.value)}
+            />
+          </label>
+        </div>
+        <small className="hint">
+          {!provider
+            ? "These fields are optional. The active provider reports which of them it can search."
+            : provider.contact_search_fields.length > 0
+              ? provider.is_demo
+                ? "The demonstration provider can match these fields in its fictional records. Apollo.io and Hunter.io are not connected. Imported spreadsheets are searched on Saved Leads."
+                : "This provider can search the contact fields it supports. Imported spreadsheets are searched on Saved Leads."
+              : "This provider does not search by contact details. Use Saved Leads to search imported contacts."}
+        </small>
+      </fieldset>
 
       {provider && provider.filters.length > 0 && (
         <fieldset className="provider-filters">

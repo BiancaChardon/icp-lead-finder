@@ -28,12 +28,35 @@ describe("buildCriteria", () => {
       employee_max: 1000,
       keywords: [],
       company_name: null,
+      full_name: null,
+      first_name: null,
+      last_name: null,
+      email: null,
+      phone: null,
       provider_filters: { verified_email_only: true },
     });
   });
 
   it("requires at least one criterion", () => {
     expect(buildCriteria(EMPTY_FORM).errors).toEqual(["Enter at least one search criterion"]);
+  });
+
+  it("accepts a contact field on its own and ignores blank contact fields", () => {
+    const { criteria, errors } = buildCriteria({
+      ...EMPTY_FORM,
+      email: " Lang@Harbor ",
+      firstName: "  ",
+      phone: "",
+    });
+    expect(errors).toEqual([]);
+    expect(criteria.email).toBe("Lang@Harbor");
+    expect(criteria.first_name).toBeNull();
+    expect(criteria.phone).toBeNull();
+  });
+
+  it("rejects a phone number that has no digits", () => {
+    const { errors } = buildCriteria({ ...EMPTY_FORM, phone: "call me" });
+    expect(errors).toContain("Phone number must include digits");
   });
 
   it.each([

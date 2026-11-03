@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.audit import record_event
+from app.contact_search import ContactSearchError, apply_saved_lead_filters
 from app.csv_export import prospects_to_csv
 from app.db import get_db
 from app.deps import get_current_user
@@ -21,10 +22,29 @@ MAX_EXPORT_ROWS = 5000
 def list_leads(
     page: int = Query(1, ge=1, le=10_000),
     per_page: int = Query(25, ge=1, le=100),
+    full_name: str | None = Query(None, max_length=200),
+    first_name: str | None = Query(None, max_length=100),
+    last_name: str | None = Query(None, max_length=100),
+    email: str | None = Query(None, max_length=320),
+    phone: str | None = Query(None, max_length=50),
+    company_name: str | None = Query(None, max_length=200),
+    industry: str | None = Query(None, max_length=100),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> Page[SavedLeadOut]:
-    owned = select(SavedLead).where(SavedLead.user_id == user.id)
+    try:
+        owned = apply_saved_lead_filters(
+            select(SavedLead).where(SavedLead.user_id == user.id),
+            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone,
+            company_name=company_name,
+            industry=industry,
+        )
+    except ContactSearchError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     total = db.scalar(select(func.count()).select_from(owned.subquery())) or 0
     rows = db.scalars(
         owned.order_by(SavedLead.created_at.desc(), SavedLead.id.desc())

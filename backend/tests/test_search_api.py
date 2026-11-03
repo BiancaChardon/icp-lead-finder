@@ -37,6 +37,7 @@ def test_provider_info(member_client: TestClient):
     assert info["is_demo"] is True
     assert "company_name" in info["sort_fields"]
     assert info["filters"][0]["key"] == "verified_email_only"
+    assert info["contact_search_fields"] == ["full_name", "first_name", "last_name", "email", "phone"]
 
 
 def test_search_returns_formatted_demo_results(member_client: TestClient):

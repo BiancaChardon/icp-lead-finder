@@ -20,8 +20,10 @@ searches, and export to CSV.
 - Optional team sign-in (`AUTH_REQUIRED`; off by default), no public registration, session cookies,
   CSRF protection, rate limiting.
 - ICP search: industry, job titles, locations, company size, keywords, company name, provider filters.
+- Contact search by full name, first name, last name, email, and phone. A full name in one field matches both name columns.
 - Results table with pagination, sorting, selection, and clear verified / unverified / not-available labels.
 - Save leads, view/remove saved leads, and search history with "Run again".
+- Excel `.xlsx` import with preview, column mapping, duplicate detection, and an error CSV.
 - CSV export of selected results or all saved leads, with spreadsheet formula-injection protection.
 - Administrator user management in Settings; audit log of security and admin events.
 
@@ -39,6 +41,8 @@ cp .env.example .env
 sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
 docker compose up -d --build
 ```
+
+If port 3000 or 8000 is already in use, start with `docker-compose.demo.yml` as well. See [DEMO-START.md](DEMO-START.md).
 
 Open http://localhost:3000. Sign-in is **off by default** (`AUTH_REQUIRED=false`): the dashboard opens
 directly and everyone shares one workspace (saved leads and search history).
@@ -139,8 +143,10 @@ Production refuses to start with insecure or missing settings (wildcard or non-H
 
 ## Documentation
 
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): DigitalOcean Ubuntu deployment with Caddy HTTPS
-- [docs/BACKUP.md](docs/BACKUP.md): backups, restores, and retention
+- [DEMO-START.md](DEMO-START.md): local demo on ports 3012 and 8012
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): local startup and DigitalOcean deployment with Caddy HTTPS
+- [docs/ENVIRONMENT_CONFIGURATION.md](docs/ENVIRONMENT_CONFIGURATION.md): environment variables and sign-in readiness
+- [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md): backup, scratch restore, and live restore
 - [docs/PROVIDERS.md](docs/PROVIDERS.md): provider interface and adding Apollo.io or others
 
 ## Repository layout

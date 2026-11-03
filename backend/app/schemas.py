@@ -92,9 +92,14 @@ class SearchCriteria(StrictModel):
         default_factory=list, max_length=MAX_LIST_ITEMS
     )
     company_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] | None = None
+    full_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)] | None = None
+    first_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)] | None = None
+    last_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)] | None = None
+    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=320)] | None = None
+    phone: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)] | None = None
     provider_filters: dict[str, bool | int | str] = Field(default_factory=dict, max_length=10)
 
-    @field_validator("industry", "company_name", mode="before")
+    @field_validator("industry", "company_name", "full_name", "first_name", "last_name", "email", "phone", mode="before")
     @classmethod
     def _blank_to_none(cls, value: Any) -> Any:
         if isinstance(value, str) and not value.strip():
@@ -119,6 +124,8 @@ class SearchCriteria(StrictModel):
     def _check(self) -> "SearchCriteria":
         if self.employee_min and self.employee_max and self.employee_min > self.employee_max:
             raise ValueError("employee_min must be less than or equal to employee_max")
+        if self.phone and not any(character.isdigit() for character in self.phone):
+            raise ValueError("Phone number must include digits")
         if not any(
             [
                 self.industry,
@@ -128,6 +135,11 @@ class SearchCriteria(StrictModel):
                 self.employee_max,
                 self.keywords,
                 self.company_name,
+                self.full_name,
+                self.first_name,
+                self.last_name,
+                self.email,
+                self.phone,
             ]
         ):
             raise ValueError("Enter at least one search criterion")
@@ -192,6 +204,7 @@ class ProviderInfo(BaseModel):
     is_demo: bool
     sort_fields: list[str]
     filters: list[ProviderFilterInfo]
+    contact_search_fields: list[str] = Field(default_factory=list)
     max_page: int = MAX_PAGE
     per_page_options: list[int] = [10, 25, 50]
 
@@ -247,3 +260,59 @@ class HistoryOut(BaseModel):
     criteria: dict[str, Any]
     result_count: int | None
     created_at: datetime
+
+
+class ImportField(BaseModel):
+    key: str
+    label: str
+
+
+class ImportColumn(BaseModel):
+    header: str
+    field: str | None
+
+
+class ImportPreviewRow(BaseModel):
+    row_number: int
+    status: Literal["ready", "duplicate", "invalid"]
+    duplicate_reason: Literal["in_file", "already_saved"] | None = None
+    errors: list[str]
+    provider_record_id: str | None = None
+    company_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    job_title: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    company_website: str | None = None
+    industry: str | None = None
+    employee_count: int | None = None
+    city: str | None = None
+    state: str | None = None
+    country: str | None = None
+    data_source: str | None = None
+
+
+class ImportPreview(BaseModel):
+    sheet_name: str
+    total_rows: int
+    blank_rows: int
+    valid_records: int
+    invalid_records: int
+    duplicate_records: int
+    existing_duplicates: int
+    repeated_rows: int
+    ready_records: int
+    columns: list[ImportColumn]
+    unmapped_headers: list[str]
+    fields: list[ImportField]
+    rows: list[ImportPreviewRow]
+    rows_shown: int
+    rows_omitted: int
+
+
+class ImportResult(BaseModel):
+    imported: int
+    updated: int
+    skipped_duplicates: int
+    rejected: int

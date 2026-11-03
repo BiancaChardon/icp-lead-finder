@@ -16,6 +16,11 @@ export interface SearchFormValues {
   employeeMax: string;
   keywords: string;
   companyName: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
   providerFilters: Record<string, boolean>;
 }
 
@@ -27,6 +32,11 @@ export const EMPTY_FORM: SearchFormValues = {
   employeeMax: "",
   keywords: "",
   companyName: "",
+  fullName: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
   providerFilters: {},
 };
 
@@ -63,6 +73,16 @@ function parseCount(label: string, value: string, errors: string[]): number | nu
   return n;
 }
 
+function optionalText(label: string, value: string, maxLength: number, errors: string[]): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > maxLength) {
+    errors.push(`${label} must be ${maxLength} characters or fewer`);
+    return null;
+  }
+  return trimmed;
+}
+
 function checkList(label: string, items: string[], maxLength: number, errors: string[]): void {
   if (items.length > LIMITS.listItems) errors.push(`${label}: enter at most ${LIMITS.listItems} values`);
   if (items.some((i) => i.length > maxLength)) errors.push(`${label}: each value must be ${maxLength} characters or fewer`);
@@ -84,6 +104,13 @@ export function buildCriteria(values: SearchFormValues): { criteria: SearchCrite
   checkList("Locations", locations, LIMITS.shortText, errors);
   checkList("Keywords", keywords, LIMITS.keyword, errors);
 
+  const fullName = optionalText("Full name", values.fullName, LIMITS.companyName, errors);
+  const firstName = optionalText("First name", values.firstName, LIMITS.shortText, errors);
+  const lastName = optionalText("Last name", values.lastName, LIMITS.shortText, errors);
+  const email = optionalText("Email address", values.email, 320, errors);
+  const phone = optionalText("Phone number", values.phone, 50, errors);
+  if (phone && !/\d/.test(phone)) errors.push("Phone number must include digits");
+
   const employeeMin = parseCount("Minimum employees", values.employeeMin, errors);
   const employeeMax = parseCount("Maximum employees", values.employeeMax, errors);
   if (employeeMin !== null && employeeMax !== null && employeeMin > employeeMax) {
@@ -100,12 +127,18 @@ export function buildCriteria(values: SearchFormValues): { criteria: SearchCrite
     employee_max: employeeMax,
     keywords,
     company_name: companyName || null,
+    full_name: fullName,
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    phone,
     provider_filters: providerFilters,
   };
 
   const hasCriterion =
     !!industry || jobTitles.length > 0 || locations.length > 0 || employeeMin !== null ||
-    employeeMax !== null || keywords.length > 0 || !!companyName;
+    employeeMax !== null || keywords.length > 0 || !!companyName ||
+    !!fullName || !!firstName || !!lastName || !!email || !!phone;
   if (!hasCriterion && errors.length === 0) errors.push("Enter at least one search criterion");
 
   return { criteria, errors };
@@ -124,6 +157,11 @@ export function criteriaToForm(criteria: SearchCriteria): SearchFormValues {
     employeeMax: criteria.employee_max ? String(criteria.employee_max) : "",
     keywords: (criteria.keywords ?? []).join(", "),
     companyName: criteria.company_name ?? "",
+    fullName: criteria.full_name ?? "",
+    firstName: criteria.first_name ?? "",
+    lastName: criteria.last_name ?? "",
+    email: criteria.email ?? "",
+    phone: criteria.phone ?? "",
     providerFilters: filters,
   };
 }
@@ -140,5 +178,10 @@ export function describeCriteria(criteria: SearchCriteria): string {
   }
   if (criteria.keywords?.length) parts.push(`keywords: ${criteria.keywords.join(", ")}`);
   if (criteria.company_name) parts.push(`company: ${criteria.company_name}`);
+  if (criteria.full_name) parts.push(`name: ${criteria.full_name}`);
+  if (criteria.first_name) parts.push(`first name: ${criteria.first_name}`);
+  if (criteria.last_name) parts.push(`last name: ${criteria.last_name}`);
+  if (criteria.email) parts.push(`email: ${criteria.email}`);
+  if (criteria.phone) parts.push(`phone: ${criteria.phone}`);
   return parts.join(" · ") || "(no criteria)";
 }

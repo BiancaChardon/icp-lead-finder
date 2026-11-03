@@ -41,6 +41,7 @@ def csv_response(content: str, prefix: str) -> Response:
 def _run_search(provider: ProspectProvider, query: ProspectQuery) -> ProspectPage:
     # Log only the error type: provider messages can contain request URLs or credentials.
     try:
+        provider.validate_query(query)
         return provider.search(query)
     except UnsupportedQueryError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

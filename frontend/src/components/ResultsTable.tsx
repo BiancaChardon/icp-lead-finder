@@ -120,6 +120,7 @@ export function ResultsTable<T extends Prospect>({ records, sort, selection, row
                 <td>
                   <div className="cell-sub">{r.data_source}</div>
                   {r.is_demo && <span className="demo-badge">DEMO</span>}
+                  {!r.is_demo && r.provider === "excel_import" && <span className="import-badge">Imported</span>}
                 </td>
                 {rowAction && <td className="col-action">{rowAction(r)}</td>}
               </tr>

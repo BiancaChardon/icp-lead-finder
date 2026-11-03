@@ -11,7 +11,7 @@ from app.db import make_engine, make_session_factory
 from app.deps import CSRF_HEADER, SAFE_METHODS
 from app.providers import build_provider
 from app.rate_limit import RateLimiter
-from app.routers import auth, health, history, leads, search, users
+from app.routers import auth, health, history, imports, leads, search, users
 
 logger = logging.getLogger("app")
 
@@ -74,7 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_headers=["Content-Type", CSRF_HEADER],
         )
 
-    for module in (health, auth, users, search, leads, history):
+    for module in (health, auth, users, search, leads, imports, history):
         app.include_router(module.router)
 
     return app

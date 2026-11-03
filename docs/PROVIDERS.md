@@ -26,6 +26,7 @@ class MyProvider(ProspectProvider):
     is_demo = False
     sort_fields = ("company_name",)    # only fields the provider can sort server-side
     filters = ()                       # optional provider-specific filters (shown in the UI)
+    contact_search_fields = ()         # subset of first_name, last_name, email, phone
 
     def search(self, query: ProspectQuery) -> ProspectPage: ...
 ```
@@ -42,6 +43,13 @@ Rules for implementations:
   Never hard-code them or send them to the frontend.
 - Use official APIs only. Do not scrape websites or bypass access controls. Respect the provider's
   rate limits, licensing terms, and permitted uses of contact data.
+- Set `contact_search_fields` only for criteria the provider can actually filter. The API rejects a
+  first name, last name, email, or phone search that is not in that list. Do not drop unsupported
+  contact criteria and return company-only results. Imported spreadsheets are searched separately
+  from `saved_leads`, which already stores those four columns.
+
+The mock provider includes all four contact fields because its generated records contain them.
+Apollo.io and Hunter.io are not implemented, so they are not searched.
 
 Register the provider in `build_provider()` in `backend/app/providers/__init__.py`, add tests with
 mocked HTTP responses (no real API calls in tests), then set `CONTACT_PROVIDER=<name>`.

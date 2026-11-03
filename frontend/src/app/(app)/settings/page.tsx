@@ -306,6 +306,12 @@ export default function SettingsPage() {
                 ? "Demonstration mode. Results are fictional and not real contacts."
                 : "Connected to a live provider. Usage may consume provider credits."}
             </dd>
+            <dt>Contact search</dt>
+            <dd>
+              {provider.contact_search_fields.length > 0
+                ? "First name, last name, email, and phone can be searched in this provider's records. Apollo.io and Hunter.io are not connected."
+                : "This provider does not search by contact details. Imported contacts can be searched on Saved Leads."}
+            </dd>
           </dl>
         ) : (
           <p className="muted">Provider information is unavailable.</p>
